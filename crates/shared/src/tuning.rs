@@ -87,6 +87,9 @@ pub enum Category {
     World,
     Triggers,
     Spawning,
+    Powerups,
+    PickupEffects,
+    PickupSpawning,
     Match,
     Camera,
     DeathCamera,
@@ -116,6 +119,9 @@ impl Category {
         Self::World,
         Self::Triggers,
         Self::Spawning,
+        Self::Powerups,
+        Self::PickupEffects,
+        Self::PickupSpawning,
         Self::Match,
         Self::Camera,
         Self::DeathCamera,
@@ -145,6 +151,9 @@ impl Category {
             Self::World => "world",
             Self::Triggers => "triggers",
             Self::Spawning => "spawning",
+            Self::Powerups => "powerups",
+            Self::PickupEffects => "effects",
+            Self::PickupSpawning => "spawning",
             Self::Match => "match",
             Self::Camera => "camera",
             Self::DeathCamera => "death",
@@ -175,6 +184,9 @@ impl Category {
             Self::World => None,
             Self::Triggers => Some(Self::World),
             Self::Spawning => Some(Self::World),
+            Self::Powerups => None,
+            Self::PickupEffects => Some(Self::Powerups),
+            Self::PickupSpawning => Some(Self::Powerups),
             Self::Match => None,
             Self::Camera => None,
             Self::DeathCamera => Some(Self::Camera),
@@ -309,12 +321,22 @@ tuning_parameters! {
     PortalMomentum => portal_momentum_multiplier: f32 = 1.0, Triggers, 0.0, 10.0, "multiplier", "Multiplies preserved horizontal and vertical velocity through teleports and warp portals. An active dash resumes its configured speed on the next tick.";
     KillPlaneHeight => kill_plane_height: f32 = -40.0, World, -1000.0, 1000.0, "units", "Players below this world-space height die immediately. Map-authored hurt volumes remain active.";
     SpawnSeparation => spawn_separation: f32 = 2.0, Spawning, 0.0, 100.0, "units", "Preferred distance from existing players when choosing a joining player spawn. If no spawn qualifies, the farthest available spawn is used. Respawns cycle authored locations.";
+    HealthPickupFraction => health_pickup_fraction: f32 = 1.0, PickupEffects, 0.0, 1.0, "fraction", "Health restored on pickup as a fraction of maximum health. Full-health players still consume the pickup.";
+    SpeedDuration => speed_duration: f32 = 8.0, PickupEffects, 0.0, 500.0, "seconds", "Duration of a speed pickup, rounded to simulation ticks. Picking up another refreshes the timer.";
+    SpeedMultiplier => speed_multiplier: f32 = 1.65, PickupEffects, 0.0, 10.0, "multiplier", "Multiplier for walking speed and acceleration while speed boost is active.";
+    RapidFireDuration => rapid_fire_duration: f32 = 8.0, PickupEffects, 0.0, 500.0, "seconds", "Duration of a rapid-fire pickup, rounded to simulation ticks. Picking up another refreshes the timer.";
+    RapidFireMultiplier => rapid_fire_multiplier: f32 = 2.0, PickupEffects, 0.1, 10.0, "multiplier", "Fire rate multiplier while rapid fire is active. New cooldowns use the current value.";
  }
  rules: MatchTuning {
     MatchDuration => match_duration: f32 = 300.0, Match, 0.1, 86400.0, "seconds", "Active match duration. Live changes preserve elapsed time and can end the current match immediately.";
     ResultsDuration => results_duration: f32 = 10.0, Match, 0.1, 3600.0, "seconds", "Results duration before the next match. Live changes preserve elapsed time.";
     KillFeedTime => kill_feed_time: i64 = 6, KillFeed, 0.0, 3600.0, "seconds", "Lifetime of new kill-feed entries. Zero hides the feed. Shortening this also caps the lifetime of existing entries.";
     KillFeedLimit => kill_feed_limit: i64 = 5, KillFeed, 0.0, 100.0, "entries", "Maximum recent deaths shown in the feed. Zero hides the feed. Lowering this removes the oldest entries immediately.";
+    ActivePickups => active_pickups: i64 = 8, PickupSpawning, 0.0, 24.0, "pickups", "Maximum active pickups. Initial spawns fill this many slots; respawns add one at a time.";
+    PickupRespawn => pickup_respawn: f32 = 4.0, PickupSpawning, 0.0, 500.0, "seconds", "Time between attempts to replace a collected pickup. Zero attempts once each simulation tick.";
+    PickupSpacing => pickup_spacing: f32 = 5.0, PickupSpawning, 0.0, 100.0, "units", "Minimum distance between active pickup positions.";
+    PickupPlayerDistance => pickup_player_distance: f32 = 2.0, PickupSpawning, 0.0, 100.0, "units", "Minimum distance from players when a pickup appears.";
+    PickupRadius => pickup_radius: f32 = 1.05, PickupSpawning, 0.0, 10.0, "units", "Player-center distance for collecting a pickup. Walls still block collection.";
  }
  presentation: PresentationTuning {
     CameraFov => camera_fov: f32 = 90.0, Camera, 10.0, 160.0, "degrees", "Vertical field of view for the world camera.";

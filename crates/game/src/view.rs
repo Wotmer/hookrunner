@@ -400,6 +400,15 @@ fn update_hud(
                 format!("\nHP: {} / {}", state.health.0, state.tuning.max_health),
                 Some(*color),
             ));
+            if state.speed_ticks > 0 {
+                let seconds = (state.speed_ticks as f64 / hookrunner_shared::TICK_HZ).ceil() as u32;
+                spans.push((format!("\nSpeed boost: {seconds}s"), None));
+            }
+            if state.rapid_fire_ticks > 0 {
+                let seconds =
+                    (state.rapid_fire_ticks as f64 / hookrunner_shared::TICK_HZ).ceil() as u32;
+                spans.push((format!("\nRapid fire: {seconds}s"), None));
+            }
             if let Some(death) = state.death {
                 if state.match_paused {
                     spans.push((" | Waiting for next match".into(), None));

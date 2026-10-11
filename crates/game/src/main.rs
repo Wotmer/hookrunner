@@ -5,6 +5,7 @@ mod loading;
 mod map;
 mod mipmaps;
 mod nameplates;
+mod powerups;
 mod scoreboard;
 mod title;
 mod view;
@@ -45,6 +46,7 @@ fn main() -> AppExit {
             view::ViewPlugin,
             debug_menu::DebugMenuPlugin,
             nameplates::NameplatesPlugin,
+            powerups::PowerupVisualsPlugin,
             weapon::WeaponPlugin,
         ))
         .run()

@@ -17,11 +17,16 @@ pub struct WeaponState {
 }
 
 pub fn step(state: &mut PlayerState, input: &PlayerInput) {
+    let interval = if state.rapid_fire_ticks > 0 {
+        state.tuning.fire_interval / state.tuning.rapid_fire_multiplier
+    } else {
+        state.tuning.fire_interval
+    };
     let weapon = &mut state.weapon;
     weapon.cooldown_ticks = weapon.cooldown_ticks.saturating_sub(1);
     if input.fire && weapon.cooldown_ticks == 0 && state.death.is_none() {
         weapon.shot = weapon.shot.wrapping_add(1);
-        weapon.cooldown_ticks = crate::tuning::seconds_to_ticks(state.tuning.fire_interval);
+        weapon.cooldown_ticks = crate::tuning::seconds_to_ticks(interval);
     }
 }
 
