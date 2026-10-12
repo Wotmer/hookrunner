@@ -128,7 +128,6 @@ func unpack(ctx context.Context, archive, destination string) error {
 
 type preview struct {
 	url, directory string
-	created        time.Time
 	cmd            *exec.Cmd
 	done           chan struct{}
 	web            *http.Server
@@ -234,7 +233,7 @@ func launchPreview(ctx context.Context, dir string, c config) (*preview, error) 
 			return nil, err
 		}
 		address := reservation.Addr().String()
-		p := &preview{directory: dir, created: time.Now(), done: make(chan struct{})}
+		p := &preview{directory: dir, done: make(chan struct{})}
 		logFile, err := os.OpenFile(filepath.Join(dir, "server.log"), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
 		if err != nil {
 			reservation.Close()

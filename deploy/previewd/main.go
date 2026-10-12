@@ -35,7 +35,6 @@ type config struct {
 	listen, ip, token, repository, githubToken, data, bwrap string
 	firstPort, lastPort, mainPort, maxPreviews              int
 	mainDeployment                                          bool
-	ttl                                                     time.Duration
 }
 
 func env(name, fallback string) string {
@@ -83,10 +82,6 @@ func loadConfig() (config, error) {
 	c.maxPreviews, err = strconv.Atoi(env("PREVIEW_MAX", "5"))
 	if err != nil || c.maxPreviews < 1 {
 		return c, errors.New("invalid PREVIEW_MAX")
-	}
-	c.ttl, err = time.ParseDuration(env("PREVIEW_TTL", "24h"))
-	if err != nil || c.ttl <= 0 {
-		return c, errors.New("invalid PREVIEW_TTL")
 	}
 	c.data, err = filepath.Abs(c.data)
 	if err != nil {
@@ -403,7 +398,7 @@ func (s *service) deploy(j *job) {
 	}()
 }
 
-func (s *service) maintain(ctx context.Context) {
+func (s *service) pruneJobs(ctx context.Context) {
 	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
 	for {
@@ -412,31 +407,12 @@ func (s *service) maintain(ctx context.Context) {
 			return
 		case now := <-ticker.C:
 			s.mu.Lock()
-			var expired []*preview
-			for pr, p := range s.active {
-				if pr != 0 && now.Sub(p.created) > s.config.ttl {
-					if j := s.current[pr]; j != nil && (j.Status == "queued" || j.Status == "deploying") {
-						continue
-					}
-					if j := s.current[pr]; j != nil {
-						j.cancel()
-						j.Status = "expired"
-						j.URL = ""
-					}
-					delete(s.current, pr)
-					delete(s.active, pr)
-					expired = append(expired, p)
-				}
-			}
 			for id, j := range s.jobs {
 				if s.current[j.PR] != j && now.Sub(j.created) > time.Hour {
 					delete(s.jobs, id)
 				}
 			}
 			s.mu.Unlock()
-			for _, p := range expired {
-				p.stop()
-			}
 		}
 	}
 }
@@ -483,7 +459,7 @@ func main() {
 	var workers sync.WaitGroup
 	workers.Add(2)
 	go func() { defer workers.Done(); s.worker(ctx) }()
-	go func() { defer workers.Done(); s.maintain(ctx) }()
+	go func() { defer workers.Done(); s.pruneJobs(ctx) }()
 	server := &http.Server{Addr: c.listen, Handler: s.handler(), ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 5 * time.Minute, WriteTimeout: 5 * time.Minute, IdleTimeout: time.Minute, MaxHeaderBytes: 16 << 10}
 	go func() {
 		<-ctx.Done()
