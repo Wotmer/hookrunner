@@ -47,6 +47,8 @@ pub fn kill(state: &mut PlayerState, pitch: f32) {
     state.velocity = Vec2::ZERO;
     state.vertical_velocity = 0.0;
     state.dash.remaining_ticks = 0;
+    state.speed_ticks = 0;
+    state.rapid_fire_ticks = 0;
 }
 
 pub fn respawn(state: &mut PlayerState, input: &PlayerInput) {
@@ -80,6 +82,8 @@ pub fn respawn(state: &mut PlayerState, input: &PlayerInput) {
 fn step_in_world(world: &CollisionWorld, state: &mut PlayerState, input: &PlayerInput) {
     let world = world.character(state.tuning);
     let dt = TICK_DURATION.as_secs_f32();
+    state.speed_ticks = state.speed_ticks.saturating_sub(1);
+    state.rapid_fire_ticks = state.rapid_fire_ticks.saturating_sub(1);
     state.yaw = input.yaw_radians() + state.view_yaw_offset;
     let grounded = state.vertical_velocity <= 0.0 && world.is_grounded(state.position);
     if grounded {
@@ -156,11 +160,16 @@ fn step_in_world(world: &CollisionWorld, state: &mut PlayerState, input: &Player
             state.vertical_velocity = state.tuning.jump_speed;
         }
         state.vertical_velocity -= state.tuning.gravity * dt;
-        let target = wish * state.tuning.walk_speed;
+        let speed = if state.speed_ticks > 0 {
+            state.tuning.speed_multiplier
+        } else {
+            1.0
+        };
+        let target = wish * state.tuning.walk_speed * speed;
         let acceleration = if axes == Vec2::ZERO {
             state.tuning.braking
         } else {
-            state.tuning.acceleration
+            state.tuning.acceleration * speed
         };
         // Preserve landing momentum, then return gradually to walk speed.
         state.velocity = state.velocity.move_towards(target, acceleration * dt);

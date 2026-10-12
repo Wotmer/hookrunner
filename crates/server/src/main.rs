@@ -3,6 +3,7 @@ mod combat;
 mod history;
 mod loading;
 mod matches;
+mod powerups;
 mod tuning;
 
 use bevy::{app::ScheduleRunnerPlugin, prelude::*};
@@ -40,6 +41,7 @@ fn main() {
         .init_resource::<hookrunner_shared::match_state::MatchState>()
         .init_resource::<matches::MatchClock>()
         .init_resource::<history::PlayerHistory>()
+        .init_resource::<powerups::PickupDirector>()
         .add_systems(Startup, (start, matches::setup))
         .add_systems(PreUpdate, matches::advance.after(tuning::edit))
         .add_observer(configure_link)
@@ -51,6 +53,8 @@ fn main() {
                 history::capture_before,
                 simulate,
                 history::capture_after,
+                powerups::collect,
+                powerups::manage,
                 combat::advance_projectiles,
             )
                 .chain(),
