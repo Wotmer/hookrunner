@@ -6,9 +6,7 @@ use bevy::{
     window::{CursorOptions, PrimaryWindow},
 };
 use hookrunner_client::{NetworkPresentation, NetworkStats, PresentationPosition, Session};
-use hookrunner_shared::{
-    PlayerId, PlayerInput, PlayerState, arena, level, player_color::PlayerColor,
-};
+use hookrunner_shared::{PlayerId, PlayerInput, PlayerState, level, player_color::PlayerColor};
 use lightyear::prelude::{client::input::InputSystems, input::native::*, *};
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
@@ -21,10 +19,15 @@ impl Plugin for ViewPlugin {
         app.init_resource::<Look>()
             .insert_resource(ClearColor(Color::srgb(0.055, 0.07, 0.095)))
             .add_systems(Startup, build_scene)
-            .add_systems(Startup, crate::map::build_map)
             .add_systems(
                 Update,
-                (crate::map::finish_loading, crate::map::tune_lighting),
+                (
+                    crate::map::build_map,
+                    crate::map::finish_loading,
+                    crate::map::tune_lighting,
+                )
+                    .chain()
+                    .after(hookrunner_client::update_session),
             )
             .add_systems(
                 PreUpdate,
@@ -92,11 +95,7 @@ fn build_scene(mut commands: Commands) {
             fov: 90.0_f32.to_radians(),
             ..default()
         }),
-        Transform::from_translation(
-            arena::spawn(0, default()).position
-                + Vec3::Y * hookrunner_shared::tuning::SimulationTuning::default().eye_height,
-        )
-        .with_rotation(Quat::from_rotation_y(arena::spawn(0, default()).yaw)),
+        Transform::from_xyz(0.0, 5.0, 0.0),
         PlayerCamera,
         Msaa::Sample4,
     ));

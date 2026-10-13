@@ -22,6 +22,19 @@ fn main() {
         println!("{}", hookrunner_shared::SIMULATION_BUILD);
         return;
     }
+    let map = std::env::var("HOOKRUNNER_MAP")
+        .unwrap_or_else(|_| hookrunner_shared::level::active().id.into());
+    if let Err(error) = hookrunner_shared::level::select(&map) {
+        eprintln!(
+            "{error}. Available maps: {}",
+            hookrunner_shared::level::MAPS
+                .iter()
+                .map(|m| m.id)
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        std::process::exit(2);
+    }
     let address: SocketAddr = std::env::var("HOOKRUNNER_BIND")
         .unwrap_or_else(|_| "0.0.0.0:5000".into())
         .parse()
@@ -131,6 +144,12 @@ fn spawn_players(
         let mut joined = already_joined;
         for request in requests.receive() {
             if joined {
+                continue;
+            }
+            if request.map != hookrunner_shared::level::active().id {
+                replies.send::<LobbyChannel>(JoinRejected {
+                    reason: "The server map changed. Reconnect before joining.".into(),
+                });
                 continue;
             }
             let name = match hookrunner_shared::nickname::validate(&request.nickname) {

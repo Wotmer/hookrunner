@@ -34,7 +34,7 @@ impl Plugin for GameNetworkingPlugin {
         .add_plugins(tuning::TuningPlugin)
         .add_observer(join_game)
         .add_systems(Startup, start_lobby)
-        .add_systems(Update, (send_join, update_session, maintain_lobby).chain())
+        .add_systems(Update, (update_session, send_join, maintain_lobby).chain())
         .add_systems(PreUpdate, attach_input)
         .add_systems(FixedUpdate, predict)
         .add_systems(Update, update_network_stats);
@@ -56,6 +56,8 @@ pub struct Session {
     pub color: u8,
     pub error: Option<String>,
     pub lobby_ready: bool,
+    pub map: Option<String>,
+    pub map_ready: bool,
     connection: Option<Entity>,
     join_sent: bool,
     elapsed: f32,
@@ -158,7 +160,7 @@ fn send_join(
     mut session: ResMut<Session>,
     mut connections: Query<&mut MessageSender<JoinRequest>, (With<Client>, With<Connected>)>,
 ) {
-    if session.phase != SessionPhase::Connecting || session.join_sent {
+    if session.phase != SessionPhase::Connecting || session.join_sent || !session.map_ready {
         return;
     }
     if let Some(mut sender) = session
@@ -166,6 +168,7 @@ fn send_join(
         .and_then(|entity| connections.get_mut(entity).ok())
     {
         sender.send::<LobbyChannel>(JoinRequest {
+            map: session.map.clone().expect("loaded server map"),
             nickname: session.nickname.clone(),
             color: session.color,
         });
@@ -178,6 +181,7 @@ type SessionReplicas = Or<(
     With<hookrunner_shared::weapon::Projectile>,
     With<hookrunner_shared::match_state::MatchState>,
     With<hookrunner_shared::tuning::FeatureSettings>,
+    With<hookrunner_shared::powerups::Pickup>,
 )>;
 
 pub fn update_session(
@@ -189,7 +193,7 @@ pub fn update_session(
         With<Client>,
     >,
     players: Query<(&PlayerName, &hookrunner_shared::player_color::PlayerColor), With<Predicted>>,
-    rounds: Query<Entity, With<hookrunner_shared::match_state::MatchState>>,
+    rounds: Query<&hookrunner_shared::match_state::MatchState>,
     replicas: Query<Entity, SessionReplicas>,
 ) {
     let Some(entity) = session.connection else {
@@ -207,7 +211,20 @@ pub fn update_session(
     } else {
         failure = Some("Connection lost. Please try again.".into());
     }
-    let lobby_ready = failure.is_none() && !rounds.is_empty();
+    if failure.is_none()
+        && let Ok(round) = rounds.single()
+        && session.map.as_deref() != Some(&round.map)
+    {
+        if session.is_playing() {
+            failure = Some("The server changed maps. Please reconnect.".into());
+        } else if let Err(error) = hookrunner_shared::level::select(&round.map) {
+            failure = Some(error);
+        } else {
+            session.map = Some(round.map.clone());
+            session.map_ready = false;
+        }
+    }
+    let lobby_ready = failure.is_none() && session.map.is_some() && !rounds.is_empty();
     if session.lobby_ready != lobby_ready {
         session.lobby_ready = lobby_ready;
     }
@@ -235,6 +252,8 @@ pub fn update_session(
             commands.entity(replica).try_despawn();
         }
         session.connection = None;
+        session.map = None;
+        session.map_ready = false;
         session.phase = SessionPhase::Title;
         session.join_sent = false;
         session.lobby_ready = false;
@@ -282,10 +301,14 @@ pub struct PredictedShot {
 }
 
 fn predict(
+    session: Res<Session>,
     timeline: Res<LocalTimeline>,
     mut shots: ResMut<PredictedShots>,
     mut players: Query<(&PlayerId, &mut PlayerState, &ActionState<PlayerInput>), With<Predicted>>,
 ) {
+    if !session.map_ready {
+        return;
+    }
     for (id, mut state, input) in &mut players {
         let previous = state.weapon.shot;
         movement::step(&mut state, &input.0);

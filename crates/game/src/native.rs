@@ -133,7 +133,7 @@ pub fn pointer_locked(cursor: &CursorOptions) -> bool {
 }
 
 pub fn finished_loading() {
-    info!("Stormkeep loaded.");
+    info!("{} loaded.", hookrunner_shared::level::data().name);
 }
 
 // The shared Bevy loading screen presents progress on native platforms.

@@ -10,6 +10,7 @@ pub struct PlayerName(pub String);
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct JoinRequest {
+    pub map: String,
     pub nickname: String,
     pub color: u8,
 }
